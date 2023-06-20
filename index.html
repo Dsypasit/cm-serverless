@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Product Form</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+  <div class="container mx-auto py-8">
+    <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+      <form id="product-form" class="space-y-4">
+        <div>
+          <label for="product-name" class="block font-medium">Product Name:</label>
+          <input type="text" id="product-name" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div class="relative">
+          <label for="product-type" class="block font-medium">Product Type:</label>
+          <input type="text" id="product-type" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+          <div id="autocomplete" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-2 hidden"></div>
+        </div>
+
+        <div>
+          <label for="product-image" class="block font-medium">Product Image:</label>
+          <input type="file" id="product-image" accept="image/*">
+          <img id="product-preview" src="#" alt="Product Preview" class="mt-2 hidden">
+        </div>
+
+        <div>
+          <button type="submit" class="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600">Submit</button>
+        </div>
+      </form>
+
+      <div id="loading-indicator" class="hidden mt-4 flex items-center justify-center">
+        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900"></div>
+        <span class="ml-2">Loading...</span>
+      </div>
+
+    </div>
+  </div>
+<div id="response-data" class="hidden mt-4">
+
+</div>
+
+<script>
+  window.addEventListener('click', function(event) {
+  const div = document.getElementById('autocomplete'); // Replace 'yourDivId' with the actual ID of your div
+
+  // Check if the clicked element is inside the div
+  if (!div.contains(event.target)) {
+    div.classList.add('hidden')
+  }
+});
+</script>
+
+  <script>
+    let autocompleteData = []
+    window.addEventListener('load', function() {
+      fetch('https://3ui6ohpfdy4g4wexckwjv2mvfe0ebasq.lambda-url.ap-southeast-1.on.aws/', {
+        method: 'POST',
+        body: JSON.stringify({
+          handler: 'get_hs_code',
+        })
+      }).then( (response) => {
+        return response.json()
+      }).then(data => {
+        autocompleteData = data.map(e => "hs"+e.hscode+" "+e.description)
+      }).catch(function(error) {
+        console.log('Error: ' + error.message);
+      });
+    })
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const productTypeInput = document.getElementById('product-type');
+      const autocompleteContainer = document.getElementById('autocomplete');
+      const loadingIndicator = document.getElementById('loading-indicator');
+      const responseData = document.getElementById('response-data');
+      const productImageInput = document.getElementById('product-image');
+      const productPreview = document.getElementById('product-preview');
+      let timeoutId;
+
+      productTypeInput.addEventListener('input', function() {
+        // clearTimeout(timeoutId);
+        // timeoutId = setTimeout(fetchAutocompleteData, 300);
+        fetchAutocompleteData()
+      });
+
+      function filterData(text){
+        let data =  autocompleteData.filter(item => item.toLowerCase().split(' ').includes(text.toLowerCase())).slice(0, 20);
+        if (data.length < 20){
+          let fil2 = autocompleteData.filter(item => (!data.includes(item)) && item.toLowerCase().includes(text.toLowerCase())).slice(0, 20);
+          data = [...data, ...fil2]
+        }
+        return data
+      }
+      function fetchAutocompleteData() {
+        const productType = productTypeInput.value;
+        if (productType.length >= 2) {
+          loadingIndicator.classList.remove('hidden');
+
+          // Simulating an AJAX request
+            // const filteredData = autocompleteData.filter(item => item.toLowerCase().includes(productType.toLowerCase())).slice(0, 10);
+            const filteredData = filterData(productType)
+            displayAutocompleteData(filteredData);
+            loadingIndicator.classList.add('hidden');
+        } else {
+          // Clear autocomplete data
+          displayAutocompleteData(autocompleteData.slice(0, 10));
+        }
+      }
+
+      function displayAutocompleteData(data, match='') {
+        autocompleteContainer.innerHTML = '';
+        if (data.length > 0) {
+          data.forEach(function(item) {
+            const option = document.createElement('div');
+            const matchIndex = item.toLowerCase().indexOf(productTypeInput.value.toLowerCase());
+            const matchLength = productTypeInput.value.length;
+
+            // Highlight the matching text
+            const highlightedText = item.slice(0, matchIndex) +
+              '<span class="bg-yellow-500 font-bold">' + item.slice(matchIndex, matchIndex + matchLength) + '</span>' +
+              item.slice(matchIndex + matchLength);
+            option.innerHTML = highlightedText;
+            option.classList.add('autocomplete-option', 'p-2', 'cursor-pointer');
+            option.addEventListener('click', function () {
+              productTypeInput.value = item;
+              autocompleteContainer.innerHTML = '';
+            });
+            autocompleteContainer.appendChild(option);
+          });
+          autocompleteContainer.classList.remove('hidden');
+        } else {
+          autocompleteContainer.classList.add('hidden');
+        }
+      }
+
+      productImageInput.addEventListener('change', function () {
+        const file = productImageInput.files[0];
+        if (file) {
+          productPreview.src = URL.createObjectURL(file);
+          productPreview.classList.remove('hidden');
+        } else {
+          productPreview.src = '#';
+          productPreview.classList.add('hidden');
+        }
+      });
+
+      document.getElementById('product-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const productName = document.getElementById('product-name').value;
+        const productType = productTypeInput.value;
+        const productImage = productImageInput.files[0];
+
+        loadingIndicator.classList.remove('hidden');
+
+        // Simulating an AJAX request
+        setTimeout(function () {
+          const responseData = {
+            // Example response data
+            id: 123,
+            name: productName,
+            type: productType,
+            imageUrl: productImage ? URL.createObjectURL(productImage) : ''
+          };
+
+          displayResponseData(responseData);
+          loadingIndicator.classList.add('hidden');
+        }, 500);
+      });
+
+      function displayResponseData(data) {
+        const responseContainer = document.createElement('div');
+        responseContainer.innerHTML = `
+          <p>Product ID: ${data.id}</p>
+          <p>Product Name: ${data.name}</p>
+          <p>Product Type: ${data.type}</p>
+          <img src="${data.imageUrl}" alt="Product Image">
+        `;
+        responseData.innerHTML = '';
+        responseData.appendChild(responseContainer);
+        responseData.classList.remove('hidden');
+      }
+    });
+            </script>
+  </body>
+  
+  </html>
